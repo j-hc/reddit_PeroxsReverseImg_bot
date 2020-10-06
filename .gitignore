@@ -1,0 +1,7 @@
+venv
+test.py
+__pycache__
+.idea
+deploy.bat
+logs.bat
+.env
