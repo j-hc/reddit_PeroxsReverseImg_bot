@@ -1,13 +1,17 @@
 from PyGoogleImgReverseSearch import GoogleImgReverseSearch
-from rStuff import rBot, rPost
+from rStuff import rBot
 from info import useragent, client_id, client_secret, bot_username, bot_pass
 from strings import tr, en
 from time import sleep
+import re
+from CompareImageHashes import CompareImageHashes
+from datetime import datetime
 
 
 # Some stuff.. ------------------
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
 loop_interval = 6
+reddit_submission_regex = r"^https?://(www.)*reddit.com/r/.+?/comments/(.+?)/.*"
 # -------------------------------
 
 
@@ -25,41 +29,51 @@ def comment_parser(body):
     return {'sub_filter': sub_filter, 'gallery_index': gallery_index}
 
 
-def reply_builder(results):
-    self_text_posts_l = []
-    image_posts_l = []
+def reply_builder(results, base_pic_url):
+    image_hash_pair = {}
+    hash_compare = CompareImageHashes(base_pic_url)
     for result in results:
-        if "/r/" in result:
-            try:
-                post_id = result.split('/')[6]
-            except IndexError:
-                continue
-            post_req = reverse_img_bot.get_info_by_id("t3_" + post_id)
-            if post_req is not None:
-                post_info = rPost(post_req)
-            else:
-                continue
-            result_txt = f"- [{post_info.title}]({result}) from {post_info.subreddit_name_prefixed}"
-            if post_info.is_img:
-                image_posts_l.append(result_txt)
-            else:
-                self_text_posts_l.append(result_txt)
-    self_text_posts = "\r\n\n".join(self_text_posts_l)
-    image_posts = "\r\n\n".join(image_posts_l)
-    return {"self_text_posts": self_text_posts, "image_posts": image_posts}
+        r_re = re.match(reddit_submission_regex, result)
+        if r_re is not None:
+            post_id = r_re.group(2)
+        else:
+            continue
+        post_info = reverse_img_bot.get_info_by_id("t3_" + post_id)
+        if post_info is None or not post_info.is_img:
+            continue
+        if post_info.is_gallery:
+            img_url = post_info.gallery_media[0]
+        else:
+            img_url = post_info.url
+        image_hash_pair.update({post_info: hash_compare.hamming_distance_percentage(img_url)})
+
+    post_hash_pair_sorted = {post: hamming for post, hamming in sorted(image_hash_pair.items(), key=lambda item: item[1], reverse=True)}
+
+    final_txt = []
+    for post in post_hash_pair_sorted:
+        posted_at = datetime.fromtimestamp(post.created_utc).strftime("%d/%m/%Y")
+        post_direct = f"https://www.reddit.com{post.permalink}"
+        sub = post.subreddit_name_prefixed
+        post_title_truncated = post.title[:30]
+        if len(post.title) > 30:
+            post_title_truncated += "..."
+        hamming = post_hash_pair_sorted[post]
+        result_txt = f"- [{post_title_truncated}]({post_direct}) posted at {posted_at} in {sub} ({hamming})"
+        final_txt.append(result_txt)
+    return "\r\n\n".join(final_txt)
 
 
 def notif_handler(notif):
     lang_f = tr if notif.lang == 'tr' else en
     if notif.rtype == 'username_mention':
         # NORMAL
-        post = rPost(reverse_img_bot.get_info_by_id(notif.post_id))
+        post = reverse_img_bot.get_info_by_id(notif.post_id)
         if not post.is_img:
             print("not an image")
-            is_replied = reverse_img_bot.send_reply(lang_f["no-image"], notif)
+            is_replied = reverse_img_bot.send_reply(lang_f["no_image"], notif)
             if is_replied != 0:
                 sleep(is_replied)
-                reverse_img_bot.send_reply(lang_f["no-image"], notif)
+                reverse_img_bot.send_reply(lang_f["no_image"], notif)
             return 0
         parsed_comment = comment_parser(notif.body)
         sub_filter, gallery_index = parsed_comment['sub_filter'], parsed_comment['gallery_index']
@@ -70,15 +84,11 @@ def notif_handler(notif):
         filter_site = f'www.reddit.com' if sub_filter == 'all' else f'www.reddit.com/r/{sub_filter}'
         print(f"searching for: {img_url} in {filter_site}")
         results = GoogleImgReverseSearch.reverse_search(img_url, filter_site=filter_site, lang=post.lang)
-        reply_built = reply_builder(results)
-        image_posts = reply_built["image_posts"]
-        self_text_posts = reply_built["self_text_posts"]
+        reply_built = reply_builder(results, img_url)
         comment_txt = ""
-        if bool(image_posts):
-            comment_txt += f"{lang_f['found_these']}\r\n\n{image_posts}"
-        if bool(self_text_posts):
-            comment_txt += f"\r\n\n{lang_f['maybe_relevant']}\r\n\n{self_text_posts}"
-        if not bool(comment_txt):
+        if bool(reply_built):
+            comment_txt += f"{lang_f['found_these']}\r\n\n{reply_built}"
+        else:
             comment_txt = lang_f["nothing"]
         is_replied = reverse_img_bot.send_reply(comment_txt, notif)
         if is_replied != 0:

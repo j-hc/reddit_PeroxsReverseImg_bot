@@ -2,7 +2,7 @@ import requests
 import requests.auth
 import logging
 from http import cookiejar
-from .rUtils import rNotif, rBase
+from .rUtils import rNotif, rBase, rPost
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from ratelimit import sleep_and_retry, limits
@@ -125,12 +125,14 @@ class rBot:
                 self.read_notifs(the_notif)
 
     def get_info_by_id(self, thing_id):
-        thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
-        try:
-            thinginfo = thing_info.json()['data']['children'][0]
-        except:
-            thinginfo = None
-        return thinginfo
+        thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id}).json()
+        if not bool(thing_info["data"]["children"]):
+            print(thing_info)
+            return None
+        elif thing_info["data"]["children"][0]["kind"] == "t3":
+            return rPost(thing_info["data"]["children"][0])
+        else:
+            return thing_info
 
     def exclude_from_all(self, sub):
         data = {'model': f'{{"name":"{sub}"}}'}

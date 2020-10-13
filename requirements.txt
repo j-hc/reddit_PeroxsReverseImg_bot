@@ -1,2 +1,5 @@
 requests
 ratelimit
+Pillow
+ImageHash
+python-dotenv

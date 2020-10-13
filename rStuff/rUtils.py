@@ -36,6 +36,9 @@ class rPost:
     def __init__(self, post):
         content = post['data']
         self.id_ = content['name']  # answer to this. represents the post with t3 prefix
+        self.permalink = content['permalink']
+        self.created_utc = content['created_utc']
+        self.id_without_prefix = content['id']
         self.is_self = content['is_self']  # text or not
         self.author = content['author']  # author
         self.title = content['title']
@@ -54,6 +57,7 @@ class rPost:
                 except KeyError:
                     img_m = 'jpg'
                 self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
+            self.url = self.gallery_media[0]
             self.is_img = True
         else:
             self.url = content['url']  # url
