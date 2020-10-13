@@ -83,7 +83,8 @@ def notif_handler(notif):
             img_url = post.url
         filter_site = f'www.reddit.com' if sub_filter == 'all' else f'www.reddit.com/r/{sub_filter}'
         print(f"searching for: {img_url} in {filter_site}")
-        results = GoogleImgReverseSearch.reverse_search(img_url, filter_site=filter_site, lang=post.lang)
+
+        results = GoogleImgReverseSearch.reverse_search(img_url, pages=3, filter_site=filter_site, lang=post.lang)
         reply_built = reply_builder(results, img_url)
         comment_txt = ""
         if bool(reply_built):

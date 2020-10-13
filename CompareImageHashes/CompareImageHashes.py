@@ -10,7 +10,7 @@ class CompareImageHashes:
     def hamming_distance_percentage(self, pic2_url):
         hash2 = self._get_dhash_from_url(pic2_url)
         hamming_dist = hash2 - self.base_img_hash
-        return 100 * (1 - hamming_dist / 64.0)
+        return 100.0 * (1.0 - hamming_dist / 64.0)
 
     def _get_raw_img(self, url):
         img = requests.get(url, stream=True)

@@ -4,14 +4,16 @@ import re
 
 class GoogleImgReverseSearch:
     @staticmethod
-    def reverse_search(pic_url, filter_site=None, lang='en', region="US"):
+    def reverse_search(pic_url, filter_site=None, pages=3, lang='en', region="US"):
         if filter_site is None:
             raise NotImplementedError
         hl_param = f"{lang}-{region}"
-        first_set_of_results = GoogleImgReverseSearch._perform_search(pic_url, hl_param, filter_site, 0)
-        second_set_of_results = GoogleImgReverseSearch._perform_search(pic_url, hl_param, filter_site, 10)
 
-        return first_set_of_results | second_set_of_results
+        set_of_results = set()
+        for page_indexer in range(0, pages*10, 10):
+            set_of_results = set_of_results | GoogleImgReverseSearch._perform_search(pic_url, hl_param, filter_site, page_indexer)
+
+        return set_of_results
 
     @staticmethod
     def _perform_search(pic_url, hl_param, filter_site, start):
