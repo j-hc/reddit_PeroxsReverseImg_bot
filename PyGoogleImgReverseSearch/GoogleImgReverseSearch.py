@@ -13,7 +13,7 @@ class GoogleImgReverseSearch:
         for page_indexer in range(0, pages*10, 10):
             new_page_results = GoogleImgReverseSearch._perform_search(pic_url, hl_param, filter_site, page_indexer)
             set_of_results |= new_page_results
-            if len(new_page_results) < 10:
+            if page_indexer == 0 or len(new_page_results) < 10:
                 break
 
         return set_of_results
