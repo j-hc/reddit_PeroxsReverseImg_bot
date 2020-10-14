@@ -18,18 +18,22 @@ reddit_submission_regex = r"^https?://(www.)*reddit.com/r/.+?/comments/(.+?)/.*"
 def comment_parser(body):
     sub_filter = 'all'
     gallery_index = 0
+    link_mode = "www"
     for n in body.split():
-        if 'sub:' in n and len(n) >= 5:
+        n_len = len(n)
+        if 'sub:' in n and n_len >= 5:
             sub_filter = n[4:]
-        elif 'gallery:' in n and len(n) >= 9:
+        elif 'gallery:' in n and n_len >= 9:
             try:
                 gallery_index = int(n[8:]) - 1
             except ValueError:
                 pass
-    return {'sub_filter': sub_filter, 'gallery_index': gallery_index}
+        elif 'link_mode:' in n and n_len >= 11 and n[10:] == "np":
+            link_mode = "np"
+    return {'sub_filter': sub_filter, 'gallery_index': gallery_index, 'link_mode': link_mode}
 
 
-def reply_builder(results, base_pic_url):
+def reply_builder(results, base_pic_url, link_mode):
     image_hash_pair = {}
     hash_compare = CompareImageHashes(base_pic_url)
     for result in results:
@@ -52,13 +56,15 @@ def reply_builder(results, base_pic_url):
     final_txt = []
     for post in post_hash_pair_sorted:
         posted_at = datetime.fromtimestamp(post.created_utc).strftime("%d/%m/%Y")
-        post_direct = f"https://www.reddit.com{post.permalink}"
+
+        link_mode_ = "np" if post.subreddit == "turkey" else link_mode  # FOR r/TURKEY
+        post_direct = f"https://{link_mode_}.reddit.com{post.permalink}"
         sub = post.subreddit_name_prefixed
         post_title_truncated = post.title[:30]
         if len(post.title) > 30:
             post_title_truncated += "..."
         hamming = post_hash_pair_sorted[post]
-        result_txt = f"- [{post_title_truncated}]({post_direct}) posted at {posted_at} in {sub} ({hamming})"
+        result_txt = f"- [{post_title_truncated}]({post_direct}) posted at {posted_at} in {sub} (%{hamming})"
         final_txt.append(result_txt)
     return "\r\n\n".join(final_txt)
 
@@ -76,7 +82,7 @@ def notif_handler(notif):
                 reverse_img_bot.send_reply(lang_f["no_image"], notif)
             return 0
         parsed_comment = comment_parser(notif.body)
-        sub_filter, gallery_index = parsed_comment['sub_filter'], parsed_comment['gallery_index']
+        sub_filter, gallery_index, link_mode = parsed_comment['sub_filter'], parsed_comment['gallery_index'], parsed_comment['link_mode']
         if post.is_gallery:
             img_url = post.gallery_media[gallery_index % len(post.gallery_media)]
         else:
@@ -85,7 +91,7 @@ def notif_handler(notif):
         print(f"searching for: {img_url} in {filter_site}")
 
         results = GoogleImgReverseSearch.reverse_search(img_url, pages=3, filter_site=filter_site, lang=post.lang)
-        reply_built = reply_builder(results, img_url)
+        reply_built = reply_builder(results, img_url, link_mode)
         comment_txt = ""
         if bool(reply_built):
             comment_txt += f"{lang_f['found_these']}\r\n\n{reply_built}"
@@ -98,7 +104,7 @@ def notif_handler(notif):
 
     elif notif.rtype == "comment_reply":
         # GOOD BOT
-        if any(x in notif.body for x in good_bot_strs):
+        if any(x in notif.body.lower() for x in good_bot_strs):
             reverse_img_bot.send_reply(lang_f['goodbot'], notif)
 
 

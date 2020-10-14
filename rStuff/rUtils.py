@@ -10,8 +10,10 @@ class rNotif:
         # self.kind = notif['kind']  # kind
         content = notif['data']
         self.author = content.get('author')  # summoner
-        self.body = content.get('body', "").lower()  # body lowered
-        self.subreddit = content.get('subreddit', "").lower()  # sub
+        self.body = content.get('body', "")  # body
+        self.subreddit = content.get('subreddit', "")  # sub
+        if self.subreddit is not None:
+            self.subreddit = self.subreddit.lower()
         if self.subreddit in turkish_subs:
             self.lang = 'tr'
         else:
