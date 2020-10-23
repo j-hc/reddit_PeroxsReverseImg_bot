@@ -3,17 +3,25 @@ import re
 
 
 class GoogleImgReverseSearch:
+    re_pattern = re.compile(r'href="/imgres\?imgurl=(.+?)&amp;imgrefurl=(.+?)&amp'.encode(), re.IGNORECASE)
+
     @staticmethod
-    def reverse_search(pic_url, filter_site=None, pages=3, lang='en', region="US"):
-        if filter_site is None:
-            raise NotImplementedError
+    def reverse_search(pic_url, filter_site=None, page_start=0, page_end=3, lang='en', region="US", skip_same_img_ref=True):
         hl_param = f"{lang}-{region}"
 
+        pic_url_c = pic_url.split('/')[-1]  # this is for i.redd.it domains
         set_of_results = set()
-        for page_indexer in range(0, pages*10, 10):
+        for page_indexer in range(page_start * 10, page_end * 10, 10):
             new_page_results = GoogleImgReverseSearch._perform_search(pic_url, hl_param, filter_site, page_indexer)
-            set_of_results |= new_page_results
-            if page_indexer == 0 or len(new_page_results) < 10:
+            for res in new_page_results:
+                ref_decoded = res[0].decode('utf-8')
+                if skip_same_img_ref and pic_url_c in ref_decoded:
+                    continue
+                set_of_results |= {(res[1].decode('utf-8'), ref_decoded)}
+
+            new_page_results_l = len(new_page_results)
+            if (page_indexer != 0 and new_page_results_l < 9) or new_page_results_l < 4:
+                set_of_results.add("out_of_pages")
                 break
 
         return set_of_results
@@ -29,11 +37,21 @@ class GoogleImgReverseSearch:
             'as_sitesearch': filter_site,
             'safe': 'images',
             'cr': '',
-            'start': start
+            'start': start,
+
+            # 'as_q': '',
+            # 'as_epq': '',
+            # 'as_oq': '',
+            # 'as_eq': '',
+            # 'imgsz': '',
+            # 'imgar': '',
+            # 'imgc': '',
+            # 'imgcolor': '',
+            # 'imgtype': '',
+            # 'as_filetype': '',
         }
         response = requests.get('https://www.google.com/searchbyimage', params=params, allow_redirects=False)
         tbs_response = requests.get(response.headers['location'], headers=headers, params={'hl': hl_param})
 
-        results_filtered = re.findall(f'href="(https?://{filter_site}.*?)"'.encode(), tbs_response.content, re.IGNORECASE)
-        results = set(result.decode("utf-8") for result in results_filtered)
-        return results
+        results_filtered = GoogleImgReverseSearch.re_pattern.findall(tbs_response.content)
+        return results_filtered

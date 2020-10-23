@@ -1,7 +1,7 @@
 rBase = "https://www.reddit.com"
 
 # Some stuff.. ------------------
-turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs", "gh_ben", "burdurland"]
+turkish_subs = ["Turkey", "TurkeyJerky", "testyapiyorum", "KGBTR", "svihs", "burdurland"]
 # -------------------------------
 
 
@@ -12,8 +12,6 @@ class rNotif:
         self.author = content.get('author')  # summoner
         self.body = content.get('body', "")  # body
         self.subreddit = content.get('subreddit', "")  # sub
-        if self.subreddit is not None:
-            self.subreddit = self.subreddit.lower()
         if self.subreddit in turkish_subs:
             self.lang = 'tr'
         else:
@@ -49,22 +47,26 @@ class rPost:
             gallery_content = content['crosspost_parent_list'][0]
         else:
             gallery_content = content
+
         self.is_gallery = gallery_content.get('is_gallery', False)
         if self.is_gallery:
-            self.gallery_media = []
-            for gd in gallery_content['gallery_data']['items']:
-                gallery_id = gd['media_id']
-                try:
-                    img_m = gallery_content['media_metadata'][gallery_id]['m'].split('/')[-1]
-                except KeyError:
-                    img_m = 'jpg'
-                self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
-            self.url = self.gallery_media[0]
-            self.is_img = True
+            if gallery_content['gallery_data'] is None:
+                self.is_img = False
+            else:
+                self.gallery_media = []
+                for gd in gallery_content['gallery_data']['items']:
+                    gallery_id = gd['media_id']
+                    try:
+                        img_m = gallery_content['media_metadata'][gallery_id]['m'].split('/')[-1]
+                    except KeyError:
+                        img_m = 'jpg'
+                    self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
+                self.url = self.gallery_media[0]
+                self.is_img = True
         else:
             self.url = content['url']  # url
             self.is_img = self._is_img_post()
-        self.subreddit = content['subreddit'].lower()
+        self.subreddit = content['subreddit']
         self.subreddit_name_prefixed = content['subreddit_name_prefixed']
         self.over_18 = content['over_18']
         if self.subreddit in turkish_subs:
@@ -76,6 +78,12 @@ class rPost:
 
     def __repr__(self):
         return f"(PostObject: {self.id_})"
+
+    def __eq__(self, other):
+        if self.id_ == other.id_:
+            return True
+        else:
+            return False
 
     def _is_img_post(self):
         if not self.is_self and self.url.split(".")[-1].lower() in ["jpg", "jpeg", "png", "tiff", "bmp"]:
