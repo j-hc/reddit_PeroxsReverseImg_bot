@@ -21,7 +21,7 @@ class GoogleImgReverseSearch:
 
             new_page_results_l = len(new_page_results)
             if (page_indexer != 0 and new_page_results_l < 9) or new_page_results_l < 4:
-                set_of_results.add("out_of_pages")
+                set_of_results.add(("out_of_pages", "out_of_pages"))
                 break
 
         return set_of_results

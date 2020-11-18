@@ -33,24 +33,29 @@ def comment_parser(body):
 
 
 def reply_builder(results, base_pic_url, link_mode):
-    if {'out_of_pages'} == results:
+    if {("out_of_pages", "out_of_pages")} == results:
         return ''
     image_hash_pairs = []
+    already_appended_post_ids = set()
     hash_compare = CompareImageHashes(base_pic_url)
     for submission_url, submission_img_url in results:
+        if submission_url == "out_of_pages":
+            continue
         r_re = re.match(reddit_submission_regex, submission_url)
         if r_re is not None:
             post_id = r_re.group(2)
         else:
             continue
         post_info = reverse_img_bot.get_info_by_id("t3_" + post_id)
-        if post_info in list(sum(image_hash_pairs, ())) or post_info is None or not post_info.is_img or post_info.url.split('/')[-1] not in submission_img_url:
+        if post_info.id_ in already_appended_post_ids or post_info is None or not post_info.is_img or post_info.url.split('/')[-1] not in submission_img_url:
             continue
         if post_info.is_gallery:
             img_url = post_info.gallery_media[0]
         else:
             img_url = post_info.url
         image_hash_pairs.append((post_info, hash_compare.hamming_distance_percentage(img_url)))
+        already_appended_post_ids.add(post_info.id_)
+
     post_hash_pair_sorted = [(post, hamming) for post, hamming in sorted(image_hash_pairs, key=lambda item: item[1], reverse=True)][:6]
     final_txt = []
     for post, hamming in post_hash_pair_sorted:
@@ -77,7 +82,7 @@ def search_loop(img_url, filter_site, link_mode):
         start_pg_index += 3
         at_least_one_reply = bool(reply_built)
 
-        if 'out_of_pages' in results:
+        if ("out_of_pages", "out_of_pages") in results:
             break
     return reply_built
 
@@ -100,7 +105,7 @@ def notif_handler(notif):
             img_url = post.gallery_media[gallery_index % len(post.gallery_media)]
         else:
             img_url = post.url
-        filter_site = f'www.reddit.com' if sub_filter == 'all' else f'www.reddit.com/r/{sub_filter}'
+        filter_site = f'www.reddit.com' if sub_filter.lower() == 'all' else f'www.reddit.com/r/{sub_filter}'
         print(f"searching for: {img_url} in {filter_site}")
 
         link_mode = "np" if notif.subreddit == "Turkey" else "www"
