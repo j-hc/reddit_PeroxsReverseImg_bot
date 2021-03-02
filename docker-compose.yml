@@ -1,0 +1,20 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  bot:
+    image: python:3.9-alpine
+    container_name: peroxs_reverse_img_bot
+    working_dir: /app
+    env_file: .env
+    volumes:
+      - ./CompareImageHashes:/app/CompareImageHashes
+      - ./PyGoogleImgReverseSearch:/app/PyGoogleImgReverseSearch
+      - ./rStuff:/app/rStuff
+      - ./info.py:/app/info.py
+      - ./main.py:/app/main.py
+      - ./strings.py:/app/strings.py
+    networks:
+      - net
+
+networks:
+  net:
+    driver: bridge
